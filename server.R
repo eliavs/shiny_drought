@@ -191,7 +191,6 @@ shinyServer(function(input, output) {
     dat[,4]<-as.character(dat[,4])
     dat
   })
-
  
 ### Tab: "Export Dataset"
   output$exportData<-downloadHandler(
@@ -202,7 +201,7 @@ shinyServer(function(input, output) {
   output$data_export_str<-renderPrint({ str(dataset_final()) })
   output$data_export_summary<-renderPrint({ head(dataset_final(),5) })  
   
-### Tab: "Example"
+### Tab: "Example Upload Format"
   output$example<-renderTable({
     example$date<-as.character(example$date)
     head(na.omit(example[,1:3]),10)

@@ -9,6 +9,7 @@ shinyUI(pageWithSidebar(
   headerPanel("Horizon Plots & Drought"),
 # SIDEBAR PANEL
   sidebarPanel(
+    # use uploaded dataset or example dataset?
     radioButtons(inputId="upload",label="Would you like to use an uploaded dataset?",choices=c("Yes","No"),selected="No"),
     conditionalPanel(
       condition="input.upload=='Yes'",
@@ -16,10 +17,10 @@ shinyUI(pageWithSidebar(
       helpText("The \"date\" column should be formatted yyyy/mm/dd."),
       fileInput(inputId="csv", label="Select CSV file:")
     ),
+    # choose the subset of the data you want to look at
     uiOutput("example_choose_fund"),
     uiOutput("upload_choose_fund"),
-    # how to format the data?
-
+    # start date and end date of the dataset
     uiOutput("data_start_date"),
     uiOutput("data_end_date"),
     # contact info
@@ -55,7 +56,7 @@ shinyUI(pageWithSidebar(
         verbatimTextOutput("data_export_str"),
         verbatimTextOutput("data_export_summary")
       ),
-      tabPanel("Example",
+      tabPanel("Example Upload Format",
         tableOutput("example")
       )
     )
