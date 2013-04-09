@@ -4,10 +4,10 @@
 ### github: https://github.com/jfreels
 
 # Load libraries
-libs<-c("lubridate","plyr","reshape2","ggplot2","xts","PerformanceAnalytics","shiny","devtools")
+libs<-c("lubridate","plyr","reshape2","ggplot2","xts","PerformanceAnalytics","shiny","devtools","scales","jfreels")
 lapply(libs,require,character.only=TRUE)
-install_github(repo="r_jfreels",username="jfreels")
-library(jfreels)
+#install_github(repo="r_jfreels",username="jfreels")
+#library(jfreels)
 
 # load example dataset
 example<-read.csv("example.csv")
@@ -56,11 +56,9 @@ shinyServer(function(input, output) {
   data_export<-reactive({
     dat<-dataset()
     dat_subset<-if(input$data_subset=="Common") { na.omit(dat) }
-    else { 
-      dat               
-    }
+                else { dat }
     dat_format<-if(input$data_format=="Wide") { dat_subset }
-    else { na.omit(melt(dat_subset,id.vars="date")) }
+                else { na.omit(melt(dat_subset,id.vars="date")) }
     dat_format
   })
 
@@ -102,7 +100,47 @@ shinyServer(function(input, output) {
     selectInput(inputId="data_end_date_input",label="End Date:",choices=rev(unique(as.character(data_export()$date))))
   })
 
-### Tab: "Horizon"
+### Tab: "Drought"
+  drought_max_summary<-reactive({
+    dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
+    dat$drought.max.start<-dat$date[dat$drought.index]
+    dat$drought.max.end<-dat$date
+    dat<-ddply(dat,.(variable),subset,drought.value==max(drought.value,na.rm=TRUE))
+    colnames(dat)[6]<-"drought.max.value"
+    dat[,c("date","variable","drought.max.value","drought.max.start","drought.max.end")]
+    })
+
+  output$drought_max_summary<-renderPrint({
+    drought_max_summary()
+  })
+
+  output$drought_plot<-renderPlot({
+    dat<-melted_dataset()
+    dat<-ddply(dat,.(variable),transform,vami=vami(value)) # add vami column
+    dat.drought<-drought_max_summary()[,-1] # drop the date column
+    dat<-join(dat,dat.drought,by="variable") # join the two datasets for ggplot
+    #alpha=(nrow(dat)/10)/nrow(dat)
+    p<-ggplot(dat)+
+       geom_rect(aes(xmin=drought.max.start,xmax=drought.max.end,ymin=-Inf,ymax=Inf),fill="yellow")+
+       geom_line(aes(x=date,y=vami,group=variable,color=variable))+
+       facet_grid(variable~.)
+    print(p)
+  })
+
+  output$drought_plot2<-renderPlot({
+    dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
+    dat<-dat[,c(1:2,6)] 
+    print(horizon.panel.ggplot(dat,"Horizon Plot: Drought"))  
+    })
+
+
+  output$drought_test<-renderPrint({
+    dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
+    dat<-dat[,c(1:2,6)]
+    dat
+  })
+
+### Tab: "Rolling"
   output$rolling_plot12<-renderPlot({
     dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,12,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
     dat<-dat[,-3]    
