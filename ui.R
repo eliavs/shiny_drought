@@ -41,8 +41,8 @@ shinyUI(pageWithSidebar(
       ),
       tabPanel("Drought",
         radioButtons(inputId="drought_choice",label="Max or Current Drought?",choices=c("Max","Current"),selected="Max"),
-        helpText("Y-axis is variable per plot to better show the flat periods."),
         plotOutput("drought_plot"),
+        helpText("***Y-axis is variable per plot to better show the flat periods."),
         verbatimTextOutput("drought_summary")        
       ),
       tabPanel("Export Dataset",
