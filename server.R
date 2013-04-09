@@ -100,6 +100,28 @@ shinyServer(function(input, output) {
     selectInput(inputId="data_end_date_input",label="End Date:",choices=rev(unique(as.character(data_export()$date))))
   })
 
+
+### Tab: "Rolling"
+  output$rolling_plot12<-renderPlot({
+    dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,12,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
+    dat<-dat[,-3]    
+    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: 12 Month Rolling Returns (",input$data_start_date_input," to ",input$data_end_date_input,")")))
+  })
+  
+  output$rolling_plot36<-renderPlot({
+    dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,36,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
+    dat<-dat[,-3]  
+    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: 36 Month Rolling Returns (",input$data_start_date_input," to ",input$data_end_date_input,")")))
+  })
+  
+### Tab: "Drawdown"
+  output$drawdown_plot<-renderPlot({
+    dat<-melted_dataset()
+    dat<-ddply(dat,.(variable),transform,dd=dd(value))
+    dat<-dat[,-3]
+    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: Drawdown (",input$data_start_date_input," to ",input$data_end_date_input,")")))
+  })
+
 ### Tab: "Drought"
   drought_max_summary<-reactive({
     dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
@@ -111,28 +133,37 @@ shinyServer(function(input, output) {
     })
 
   output$drought_max_summary<-renderPrint({
-    drought_max_summary()
+    drought_max_summary()[,-1]
   })
 
   output$drought_plot<-renderPlot({
     dat<-melted_dataset()
     dat<-ddply(dat,.(variable),transform,vami=vami(value)) # add vami column
-    dat.drought<-drought_max_summary()[,-1] # drop the date column
+    dat.drought<-arrange(drought_max_summary()[,-1],variable,drought.max.value,desc(drought.max.end)) # format drought_max_summary() and drop the date column
+    dat.drought<-dat.drought[!duplicated(dat.drought$variable),] # only keep the most recent max drought if there are duplicates
     dat<-join(dat,dat.drought,by="variable") # join the two datasets for ggplot
     #alpha=(nrow(dat)/10)/nrow(dat)
     p<-ggplot(dat)+
-       geom_rect(aes(xmin=drought.max.start,xmax=drought.max.end,ymin=-Inf,ymax=Inf),fill="yellow")+
-       geom_line(aes(x=date,y=vami,group=variable,color=variable))+
-       facet_grid(variable~.)
+       geom_rect(aes(xmin=drought.max.start,xmax=drought.max.end,ymin=-Inf,ymax=Inf),fill="#FFEDA0")+
+       geom_line(aes(x=date,y=vami,group=variable))+
+       facet_wrap(~variable,scales="free_y")+
+       theme_bw() +                  #this is optional, but I prefer to default
+       theme(legend.position = "none",    #remove legend
+             strip.text.y = element_text(angle=0, hjust=1),#rotate strip text to horizontal 
+             axis.text.y = element_blank(),#remove y axis labels
+             axis.ticks = element_blank(), #remove tick marks
+             axis.title.y = element_blank(),#remove title for the y axis
+             axis.title.x = element_blank(),#remove title for the x axis
+             plot.title = element_text(size=16, face="bold", hjust=0))+
+       labs(title=paste0("Growth of $1 with Max Drought Shaded Yellow (",input$data_start_date_input," to ",input$data_end_date_input,")"))
     print(p)
   })
 
   output$drought_plot2<-renderPlot({
     dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
     dat<-dat[,c(1:2,6)] 
-    print(horizon.panel.ggplot(dat,"Horizon Plot: Drought"))  
+    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: Drought (",input$data_start_date_input," to ",input$data_end_date_input,")")))  
     })
-
 
   output$drought_test<-renderPrint({
     dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
@@ -140,26 +171,6 @@ shinyServer(function(input, output) {
     dat
   })
 
-### Tab: "Rolling"
-  output$rolling_plot12<-renderPlot({
-    dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,12,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
-    dat<-dat[,-3]    
-    print(horizon.panel.ggplot(dat,"Horizon Plot: 12 Month Rolling Returns"))
-  })
-  
-  output$rolling_plot36<-renderPlot({
-    dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,36,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
-    dat<-dat[,-3]  
-    print(horizon.panel.ggplot(dat,"Horizon Plot: 36 Month Rolling Returns"))
-  })
-  
-### Tab: "Drawdown"
-  output$drawdown_plot<-renderPlot({
-    dat<-melted_dataset()
-    dat<-ddply(dat,.(variable),transform,dd=dd(value))
-    dat<-dat[,-3]
-    print(horizon.panel.ggplot(dat,"Horizon Plot: Drawdown"))
-  })
   
 ### Tab: "Data Preview"
   output$data_choices<-renderPrint({

@@ -35,17 +35,17 @@ shinyUI(pageWithSidebar(
 # MAIN PANEL
   mainPanel(
     tabsetPanel(
-      tabPanel("Drought",
-        plotOutput("drought_plot2"),
-        plotOutput("drought_plot"),
-        verbatimTextOutput("drought_max_summary")        
-      ),
       tabPanel("Rolling",
         plotOutput("rolling_plot12"),
         plotOutput("rolling_plot36")
       ),
-      tabPanel("Drawdown",
-        plotOutput("drawdown_plot")
+      tabPanel("Drawdown/Drought",
+        plotOutput("drawdown_plot"),
+        plotOutput("drought_plot2")
+      ),
+      tabPanel("Drought",
+        plotOutput("drought_plot"),
+        verbatimTextOutput("drought_max_summary")        
       ),
       tabPanel("Data Preview",
         verbatimTextOutput("data_choices"),
