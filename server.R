@@ -184,9 +184,12 @@ shinyServer(function(input, output) {
     print(p)
   })
 
-  output$drought_summary<-renderPrint({
-    if (input$drought_choice=="Max") { drought_max_summary() }
-    else { drought_current_summary() }
+  output$drought_summary<-renderTable({
+    dat<-if (input$drought_choice=="Max") { drought_max_summary() }
+         else { drought_current_summary() }
+    dat[,3]<-as.character(dat[,3])
+    dat[,4]<-as.character(dat[,4])
+    dat
   })
 
  
