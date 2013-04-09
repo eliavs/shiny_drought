@@ -6,7 +6,7 @@
 ##### SHINY UI
 shinyUI(pageWithSidebar(
 # HEADER PANEL
-  headerPanel("Horizon Plots"),
+  headerPanel("Horizon Plots & Drought"),
 # SIDEBAR PANEL
   sidebarPanel(
     radioButtons(inputId="upload",label="Would you like to use an uploaded dataset?",choices=c("Yes","No"),selected="No"),
