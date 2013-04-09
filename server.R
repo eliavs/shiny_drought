@@ -100,51 +100,76 @@ shinyServer(function(input, output) {
     selectInput(inputId="data_end_date_input",label="End Date:",choices=rev(unique(as.character(data_export()$date))))
   })
 
-
 ### Tab: "Rolling"
-  output$rolling_plot12<-renderPlot({
+  output$horizon_rolling12<-renderPlot({
     dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,12,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
     dat<-dat[,-3]    
     print(horizon.panel.ggplot(dat,paste0("Horizon Plot: 12 Month Rolling Returns (",input$data_start_date_input," to ",input$data_end_date_input,")")))
   })
   
-  output$rolling_plot36<-renderPlot({
+  output$horizon_rolling36<-renderPlot({
     dat<-ddply(na.omit(melted_dataset()),.(variable),transform,roll=rollapply(value,36,FUN=function (x) {tail(cumprod(na.omit(x) + 1), 1) - 1},fill=NA,align="right"))
     dat<-dat[,-3]  
     print(horizon.panel.ggplot(dat,paste0("Horizon Plot: 36 Month Rolling Returns (",input$data_start_date_input," to ",input$data_end_date_input,")")))
   })
   
-### Tab: "Drawdown"
-  output$drawdown_plot<-renderPlot({
+### Tab: "Drawdown/Drought"
+  output$horizon_drawdown<-renderPlot({
     dat<-melted_dataset()
     dat<-ddply(dat,.(variable),transform,dd=dd(value))
     dat<-dat[,-3]
     print(horizon.panel.ggplot(dat,paste0("Horizon Plot: Drawdown (",input$data_start_date_input," to ",input$data_end_date_input,")")))
   })
 
-### Tab: "Drought"
-  drought_max_summary<-reactive({
+  output$horizon_drought<-renderPlot({
     dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
-    dat$drought.max.start<-dat$date[dat$drought.index]
-    dat$drought.max.end<-dat$date
-    dat<-ddply(dat,.(variable),subset,drought.value==max(drought.value,na.rm=TRUE))
-    colnames(dat)[6]<-"drought.max.value"
-    dat[,c("date","variable","drought.max.value","drought.max.start","drought.max.end")]
-    })
+    dat<-dat[,c(1:2,6)] 
+    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: Drought (",input$data_start_date_input," to ",input$data_end_date_input,")")))  
+  })
 
-  output$drought_max_summary<-renderPrint({
-    drought_max_summary()[,-1]
+### Tab: "Drought"
+  # All Droughts
+  drought_all<-reactive({
+    dat<-melted_dataset()
+    dat<-ddply(dat,.(variable),transform,drought=drought(value))
+    dat$drought.start<-dat$date[dat$drought.index]
+    dat$drought.end<-dat$date
+    dat
+  })
+
+  # Max Drought stuff
+  drought_max_summary<-reactive({
+    dat<-drought_all()
+    dat<-ddply(dat,.(variable),subset,drought.value==max(drought.value,na.rm=TRUE))
+    colnames(dat)[6:8]<-c("drought.max.value","drought.max.start","drought.max.end")
+    dat[,c("variable","drought.max.value","drought.max.start","drought.max.end")]
+  })
+
+  # Current Drought Stuff
+  drought_current_summary<-reactive({
+    dat<-drought_all()
+    dat<-ddply(drought_all(),.(variable),tail,1)
+    colnames(dat)[6:8]<-c("drought.current.value","drought.current.start","drought.current.end")
+    dat[,c("variable","drought.current.value","drought.current.start","drought.current.end")]
+  })
+
+  # Drought Choice
+  drought_choice<-reactive({
+    dat<-if (input$drought_choice=="Max") { 
+            dat<-arrange(drought_max_summary(),variable,drought.max.value,desc(drought.max.end))
+            dat<-dat[!duplicated(dat[,1]),] }
+         else { drought_current_summary() }
+    dat.orig<-melted_dataset()
+    dat.orig<-ddply(dat.orig,.(variable),transform,vami=vami(value)) # add vami column
+    dat<-join(dat.orig,dat,by="variable")
+    colnames(dat)<-c("date","variable","value","vami","drought.value","drought.start","drought.end")
+    dat
   })
 
   output$drought_plot<-renderPlot({
-    dat<-melted_dataset()
-    dat<-ddply(dat,.(variable),transform,vami=vami(value)) # add vami column
-    dat.drought<-arrange(drought_max_summary()[,-1],variable,drought.max.value,desc(drought.max.end)) # format drought_max_summary() and drop the date column
-    dat.drought<-dat.drought[!duplicated(dat.drought$variable),] # only keep the most recent max drought if there are duplicates
-    dat<-join(dat,dat.drought,by="variable") # join the two datasets for ggplot
-    #alpha=(nrow(dat)/10)/nrow(dat)
+    dat<-drought_choice()
     p<-ggplot(dat)+
-       geom_rect(aes(xmin=drought.max.start,xmax=drought.max.end,ymin=-Inf,ymax=Inf),fill="#FFEDA0")+
+       geom_rect(aes(xmin=drought.start,xmax=drought.end,ymin=-Inf,ymax=Inf),fill="#FFEDA0")+
        geom_line(aes(x=date,y=vami,group=variable))+
        facet_wrap(~variable,scales="free_y")+
        theme_bw() +                  #this is optional, but I prefer to default
@@ -155,35 +180,24 @@ shinyServer(function(input, output) {
              axis.title.y = element_blank(),#remove title for the y axis
              axis.title.x = element_blank(),#remove title for the x axis
              plot.title = element_text(size=16, face="bold", hjust=0))+
-       labs(title=paste0("Growth of $1 with Max Drought Shaded Yellow (",input$data_start_date_input," to ",input$data_end_date_input,")"))
+       labs(title=paste0("Growth of $1 with ",input$drought_choice," Drought Shaded Yellow (",input$data_start_date_input," to ",input$data_end_date_input,")"))
     print(p)
   })
 
-  output$drought_plot2<-renderPlot({
-    dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
-    dat<-dat[,c(1:2,6)] 
-    print(horizon.panel.ggplot(dat,paste0("Horizon Plot: Drought (",input$data_start_date_input," to ",input$data_end_date_input,")")))  
-    })
-
-  output$drought_test<-renderPrint({
-    dat<-ddply(melted_dataset(),.(variable),transform,drought=drought(value))
-    dat<-dat[,c(1:2,6)]
-    dat
+  output$drought_summary<-renderPrint({
+    if (input$drought_choice=="Max") { drought_max_summary() }
+    else { drought_current_summary() }
   })
 
-  
-### Tab: "Data Preview"
-  output$data_choices<-renderPrint({
-    choices()
-  })
-  
-  output$data_export_str<-renderPrint({
-    str(dataset_final())
-  })
-  
-  output$data_export_summary<-renderPrint({
-    head(dataset_final(),5)
-  })
+ 
+### Tab: "Export Dataset"
+  output$exportData<-downloadHandler(
+    filename=function() { paste0(input$exportName,".csv") },
+    content = function(file) { write.csv(data_export(),file,row.names=FALSE) })
+
+  output$data_choices<-renderPrint({ choices() })
+  output$data_export_str<-renderPrint({ str(dataset_final()) })
+  output$data_export_summary<-renderPrint({ head(dataset_final(),5) })  
   
 ### Tab: "Example"
   output$example<-renderTable({
@@ -191,12 +205,4 @@ shinyServer(function(input, output) {
     head(na.omit(example[,1:3]),10)
   },digits=4)
 
-### Export Data
-  output$exportData<-downloadHandler(
-    filename=function() { paste0(input$exportName,".csv") },
-    content = function(file) {
-      write.csv(data_export(),file,row.names=FALSE)
-    }
-  )
-  
 })

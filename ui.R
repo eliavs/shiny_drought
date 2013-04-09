@@ -19,13 +19,9 @@ shinyUI(pageWithSidebar(
     uiOutput("example_choose_fund"),
     uiOutput("upload_choose_fund"),
     # how to format the data?
-    radioButtons(inputId="data_subset",label="Common Timeframe or Full Track Record?",choices=c("Common","Full"),selected="Common"),
-    radioButtons(inputId="data_format",label="Wide Data or Long Data?",choices=c("Wide","Long"),selected="Wide"),
+
     uiOutput("data_start_date"),
     uiOutput("data_end_date"),
-    # download button
-    textInput(inputId="exportName",label="File name of exported data:"),
-    downloadButton(outputId="exportData",label="Export Data"),
     # contact info
     helpText(HTML("<br>*Created by: <a href = \"https://twitter.com/jfreels4\">@jfreels4</a>
                   <br>*github <a href = \"https://github.com/jfreels/shiny_drought\">code</a>
@@ -36,18 +32,25 @@ shinyUI(pageWithSidebar(
   mainPanel(
     tabsetPanel(
       tabPanel("Rolling",
-        plotOutput("rolling_plot12"),
-        plotOutput("rolling_plot36")
+        plotOutput("horizon_rolling12"),
+        plotOutput("horizon_rolling36")
       ),
       tabPanel("Drawdown/Drought",
-        plotOutput("drawdown_plot"),
-        plotOutput("drought_plot2")
+        plotOutput("horizon_drawdown"),
+        plotOutput("horizon_drought")
       ),
       tabPanel("Drought",
+        radioButtons(inputId="drought_choice",label="Max or Current Drought?",choices=c("Max","Current"),selected="Max"),
+        helpText("Y-axis is variable per plot to better show the flat periods."),
         plotOutput("drought_plot"),
-        verbatimTextOutput("drought_max_summary")        
+        verbatimTextOutput("drought_summary")        
       ),
-      tabPanel("Data Preview",
+      tabPanel("Export Dataset",
+        radioButtons(inputId="data_subset",label="Common Timeframe or Full Track Record?",choices=c("Common","Full"),selected="Common"),
+        radioButtons(inputId="data_format",label="Wide Data or Long Data?",choices=c("Wide","Long"),selected="Wide"),
+        textInput(inputId="exportName",label="File name of exported data:"),
+        downloadButton(outputId="exportData",label="Export Data"),
+        helpText("Data Preview"),
         verbatimTextOutput("data_choices"),
         verbatimTextOutput("data_export_str"),
         verbatimTextOutput("data_export_summary")
