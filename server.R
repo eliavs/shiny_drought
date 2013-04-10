@@ -137,6 +137,15 @@ shinyServer(function(input, output) {
     dat
   })
 
+  # High Water Mark
+  hwm<-reactive({
+    dat<-melted_dataset()
+    dat<-ddply(dat,.(variable),transform,vami=vami(value)) # add vami column
+    dat<-ddply(dat,.(variable),subset,vami==max(vami))
+    colnames(dat)[c(1,4)]<-c("HWM","HWM_Value")
+    dat
+  })
+
   # Max Drought stuff
   drought_max_summary<-reactive({
     dat<-drought_all()
@@ -163,16 +172,21 @@ shinyServer(function(input, output) {
     dat.orig<-ddply(dat.orig,.(variable),transform,vami=vami(value)) # add vami column
     dat<-join(dat.orig,dat,by="variable")
     colnames(dat)<-c("date","variable","value","vami","drought.value","drought.start","drought.end")
+    dat<-join(dat,hwm()[,c("HWM","variable","HWM_Value")],by="variable")
     dat
   })
 
   output$drought_plot<-renderPlot({
     dat<-drought_choice()
     p<-ggplot(dat)+
+       # drought start and end dates as a rectangle in yellow
        geom_rect(aes(xmin=drought.start,xmax=drought.end,ymin=-Inf,ymax=Inf),fill="#FFEDA0")+
+       # vami chart for the lines
        geom_line(aes(x=date,y=vami,group=variable))+
+       # high water mark dot in green
+       geom_point(aes(x=HWM,y=HWM_Value),color="#78C679",size=2,alpha=0.5)+
        facet_wrap(~variable,scales="free_y")+
-       theme_bw() +                  #this is optional, but I prefer to default
+       theme_bw()+ #this is optional, but I prefer to default
        theme(legend.position = "none",    #remove legend
              strip.text.y = element_text(angle=0, hjust=1),#rotate strip text to horizontal 
              axis.text.y = element_blank(),#remove y axis labels
@@ -187,8 +201,10 @@ shinyServer(function(input, output) {
   output$drought_summary<-renderTable({
     dat<-if (input$drought_choice=="Max") { drought_max_summary() }
          else { drought_current_summary() }
+    dat<-join(dat,hwm()[,c("HWM","variable")],by="variable")
     dat[,3]<-as.character(dat[,3])
     dat[,4]<-as.character(dat[,4])
+    dat[,5]<-as.character(dat[,5])
     dat
   })
  
